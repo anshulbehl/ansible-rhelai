@@ -3,7 +3,6 @@
 *.pem.pub
 
 # Ignore Ansible logs and temporary files
-*.retry
 .ansible/
 
 .vscode/
