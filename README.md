@@ -1,4 +1,4 @@
-# Redhat Rhelai Ansible Project
+# Red Hat RHEL AI Ansible Project
 
 Simple RHEL AI setup using Ansible on AWS.
 
