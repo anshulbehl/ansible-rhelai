@@ -1,0 +1,5 @@
+---
+- name: Deploy RHEL AI on AWS EC2
+  hosts: localhost
+  roles:
+    - role: redhat.rhelai.rhelai_aws

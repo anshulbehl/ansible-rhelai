@@ -1,0 +1,151 @@
+---
+- name: Generate SSH keypair for new instance
+  community.crypto.openssh_keypair:
+    path: "{{ rhelai_aws_local_ssh_key_path }}"
+    type: rsa
+    size: 2048
+  register: ssh_key
+
+- name: Debug the generated keys (optional)
+  ansible.builtin.debug:
+    var: ssh_key
+
+- name: Create AWS key pair
+  amazon.aws.ec2_key:
+    name: "{{ rhelai_aws_resource_name }}"
+    region: "{{ rhelai_aws_aws_region }}"
+    key_material: "{{ ssh_key.public_key }}"
+    state: present
+  register: aws_key
+
+- name: Create VPC
+  amazon.aws.ec2_vpc_net:
+    name: "{{ rhelai_aws_resource_name }}-vpc"
+    cidr_block: "{{ rhelai_aws_vpc_cidr }}"
+    region: "{{ rhelai_aws_aws_region }}"
+    state: present
+  register: created_vpc
+
+- name: Create subnet
+  amazon.aws.ec2_vpc_subnet:
+    vpc_id: "{{ created_vpc.vpc.id }}"
+    state: present
+    cidr: "{{ rhelai_aws_subnet_cidr }}"
+    region: "{{ rhelai_aws_aws_region }}"
+    map_public: true
+    tags:
+      Name: "{{ rhelai_aws_resource_name }}-subnet"
+  register: created_subnet
+
+- name: Create security group
+  amazon.aws.ec2_security_group:
+    name: "{{ rhelai_aws_resource_name }}-sg"
+    description: "SG for {{ rhelai_aws_resource_name }}"
+    vpc_id: "{{ created_vpc.vpc.id }}"
+    region: "{{ rhelai_aws_aws_region }}"
+    state: present
+    rules:
+      - proto: tcp
+        ports: [22, 80, 8000]
+        cidr_ip: 0.0.0.0/0
+    purge_rules: true
+  register: created_sg
+
+- name: Create Internet Gateway
+  amazon.aws.ec2_vpc_igw:
+    vpc_id: "{{ created_vpc.vpc.id }}"
+    region: "{{ rhelai_aws_aws_region }}"
+    state: present
+  register: igw
+  until: igw is not failed
+  retries: 15
+
+- name: Get route tables for the VPC
+  amazon.aws.ec2_vpc_route_table_info:
+    region: "{{ rhelai_aws_aws_region }}"
+    filters:
+      vpc-id: "{{ created_vpc.vpc.id }}"
+  register: route_tables_info
+
+- name: Check if default route (0.0.0.0/0) exists
+  ansible.builtin.set_fact:
+    default_route_exists: >-
+      {{
+        route_tables_info.route_tables
+        | selectattr('routes', 'defined')
+        | map(attribute='routes')
+        | flatten
+        | selectattr('destination_cidr_block', 'equalto', '0.0.0.0/0')
+        | list
+        | length > 0
+      }}
+
+- name: Create Route to Internet
+  amazon.aws.ec2_vpc_route_table:
+    region: "{{ rhelai_aws_aws_region }}"
+    vpc_id: "{{ created_vpc.vpc.id }}"
+    subnets:
+      - "{{ created_subnet.subnet.id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw.gateway_id }}"
+  register: routetable
+  when: not default_route_exists
+  until: routetable is not failed
+  retries: 5
+
+- name: Provision AWS EC2 instance for RHEL AI
+  amazon.aws.ec2_instance:
+    name: "{{ rhelai_aws_resource_name }}-instance"
+    key_name: "{{ rhelai_aws_resource_name }}"
+    instance_type: "{{ rhelai_aws_instance_type }}"
+    security_group: "{{ rhelai_aws_resource_name }}-sg"
+    image_id: "{{ rhelai_aws_rhelai_ami }}"
+    region: "{{ rhelai_aws_aws_region }}"
+    vpc_subnet_id: "{{ created_subnet.subnet.id }}"
+    network:
+      assign_public_ip: true
+    volumes:
+      - device_name: /dev/sda1
+        ebs:
+          volume_size: "{{ rhelai_aws_disk_size }}"
+          volume_type: gp3
+    tags:
+      Environment: RHEL-AI
+      Component: LLM-Serving
+      owner: "{{ rhelai_aws_owner }}"
+    wait: true
+  register: ec2
+
+- name: Wait for SSH to come up
+  ansible.builtin.wait_for:
+    host: "{{ ec2.instances[0].public_ip_address }}"
+    port: 22
+    timeout: 300
+
+- name: Debug instance public IP
+  ansible.builtin.debug:
+    msg: "Instance Public IP: {{ ec2.instances[0].public_ip_address }}"
+
+- name: Add instance to inventory
+  ansible.builtin.add_host:
+    name: "{{ rhelai_aws_resource_name }}-instance"
+    ansible_host: "{{ ec2.instances[0].public_ip_address }}"
+    ansible_user: "{{ rhelai_aws_systemd_user }}"
+    ansible_ssh_private_key_file: "{{ playbook_dir }}/{{ rhelai_aws_resource_name }}.pem"
+    ansible_ssh_extra_args: "-o StrictHostKeyChecking=no"
+    groups: rhelai_servers
+
+- name: Check port 8000 is NOT listening
+  ansible.builtin.wait_for:
+    host: "{{ ec2.instances[0].public_ip_address }}"
+    port: 8000
+    state: stopped
+    timeout: 5         # short timeout to detect an open port quickly
+  register: port_check
+  ignore_errors: true  # so we can handle the failure ourselves
+
+- name: Fail if port 8000 is listening
+  ansible.builtin.fail:
+    msg: "Port 8000 is already open on {{ ec2.instances[0].public_ip_address }}. Failing."
+  when: port_check.failed

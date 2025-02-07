@@ -1,0 +1,19 @@
+# Ignore private SSH keys
+*.pem
+*.pem.pub
+
+# Ignore Ansible logs and temporary files
+*.retry
+.ansible/
+
+.vscode/
+.devcontainer/
+
+vars.yml
+
+# Ignore everything inside collections/ansible_collections/
+collections/ansible_collections/*
+
+# But do not ignore the redhat directory
+!collections/ansible_collections/redhat/
+

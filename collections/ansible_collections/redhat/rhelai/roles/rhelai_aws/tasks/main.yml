@@ -1,0 +1,12 @@
+---
+- name: "Provision AWS Resources"
+  ansible.builtin.import_tasks: aws_provision.yml
+  when: not rhelai_aws_teardown | bool
+
+- name: "Configure InstructLab on the instance"
+  ansible.builtin.import_tasks: instructlab_config.yml
+  when: not rhelai_aws_teardown | bool
+
+- name: "Teardown resources (and remove SSH key)"
+  ansible.builtin.import_tasks: teardown.yml
+  when: rhelai_aws_teardown | bool

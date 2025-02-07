@@ -1,0 +1,126 @@
+---
+- name: Refresh inventory to recognize the new group
+  ansible.builtin.meta: refresh_inventory
+
+- name: Configure RHEL AI environment
+  become: true
+  become_user: root
+  delegate_to: "{{ rhelai_aws_resource_name }}-instance"
+  block:
+    - name: Authenticate with Red Hat registry
+      containers.podman.podman_login:
+        registry: "{{ rhelai_aws_rh_registry_url }}"
+        username: "{{ rhelai_aws_rh_registry_user }}"
+        password: "{{ rhelai_aws_rh_registry_password }}"
+      no_log: true
+
+    - name: Create /etc/ilab directory
+      ansible.builtin.file:
+        path: "{{ rhelai_aws_ilab_config_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create /etc/ilab/insights-opt-out file
+      ansible.builtin.file:
+        path: "{{ rhelai_aws_ilab_config_path }}/insights-opt-out"
+        state: touch
+        owner: root
+        group: root
+        mode: '0644'
+
+    # TODO: Setup OpenSSL to expose the model over SSL and setup nginx reverse proxy
+    # - name: Install required packages
+    #   ansible.builtin.dnf:
+    #     name:
+    #       - nginx
+    #     state: present
+    #     use_backend: dnf4
+
+    - name: Initialize InstructLab configuration
+      ansible.builtin.shell:
+        cmd: "ilab config init --non-interactive"
+
+    - name: Download specified model
+      ansible.builtin.shell:
+        cmd: "ilab model download --repository docker://{{ rhelai_aws_rh_registry_url }}/rhelai1/{{ rhelai_aws_model_name }} --release latest"
+
+    - name: Load GPU mapping configuration
+      ansible.builtin.include_vars:
+        file: "{{ role_path }}/vars/gpu_mapping.yml"
+
+    # TODO: Add logic based on model too, currently sets the maximum GPUs available
+    - name: Set GPU count based on AWS instance type
+      ansible.builtin.set_fact:
+        gpu_count: "{{ gpu_mapping[rhelai_aws_instance_type].gpus | default(1) }}"
+        tensor_parallel_size: "{{ gpu_mapping[rhelai_aws_instance_type].tensor_parallel_size | default(1) }}"
+      when: rhelai_aws_instance_type is defined
+
+    - name: Modify `host_port` to bind to all interfaces (0.0.0.0)
+      ansible.builtin.replace:
+        path: "/root/.config/instructlab/config.yaml"
+        regexp: 'host_port: 127\.0\.0\.1:(\d+)'
+        replace: 'host_port: 0.0.0.0:\1'
+
+    - name: Modify `teacher.host_port` to bind to all interfaces
+      ansible.builtin.replace:
+        path: "/root/.config/instructlab/config.yaml"
+        regexp: 'teacher.host_port: 127\.0\.0\.1:(\d+)'
+        replace: 'teacher.host_port: 0.0.0.0:\1'
+
+    - name: Update GPU count dynamically
+      ansible.builtin.replace:
+        path: "/root/.config/instructlab/config.yaml"
+        regexp: 'gpus: [0-9]+'
+        replace: 'gpus: {{ gpu_count }}'
+
+    # TODO: Needs a fix as this replaces the train section args too
+    # There are 2 vllm_args sections, one in serve and another in train
+    # Only change the serve section
+    - name: Overwrite the entire vllm_args block
+      ansible.builtin.replace:
+        path: /root/.config/instructlab/config.yaml
+        regexp: '(?s)(^(?P<indent>[ \t]*)vllm_args:.*?)(?=^# Train configuration section\.|^\S|$)'
+        replace: |
+          \g<indent>vllm_args:
+          \g<indent>  - --tensor-parallel-size
+          \g<indent>  - "{{ gpu_count }}"
+          \g<indent>  - --api-key
+          \g<indent>  - "{{ rhelai_aws_api_token }}"
+
+    - name: Remove 3 lines after the API token line
+      ansible.builtin.replace:
+        path: /root/.config/instructlab/config.yaml
+        regexp: '(?s)(^\s*-\s*"{{ rhelai_aws_api_token }}"\n)([^\n]*\n){3}'
+        replace: '\1'
+
+    - name: Enable and start model serving
+      ansible.builtin.shell: |
+        nohup /usr/bin/ilab model serve --model-path /root/.cache/instructlab/models/{{ rhelai_aws_model_name }}  > /tmp/ilab_model_serve.log 2>&1 &
+      async: 5
+      poll: 0
+      register: model_serve_command
+
+    - name: Check if something is listening on port 8000 for TCP
+      ansible.builtin.wait_for:
+        host: 0.0.0.0
+        port: 8000
+        state: started
+        timeout: 150
+      register: port_check
+      until: port_check is not failed
+
+    - name: Confirm that model serve started successfully
+      ansible.builtin.debug:
+        msg: "Model serve started successfully and is listening on port 8000"
+      when: port_check is succeeded
+
+    - name: Handle error if port 8000 is not listening
+      ansible.builtin.fail:
+        msg: "Model serve did not start successfully; nothing is listening on port 8000"
+      when: port_check is failed
+
+    - name: Output Model Serving URL
+      ansible.builtin.debug:
+        msg: "Model is served at: http://{{ ansible_host }}:{{ rhelai_aws_serve_port }} with token: {{ rhelai_aws_api_token }}"

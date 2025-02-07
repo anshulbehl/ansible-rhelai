@@ -1,0 +1,11 @@
+---
+rhelai_aws_instance_type:
+rhelai_aws_rhelai_ami:
+rhelai_aws_model_name:
+rhelai_aws_disk_size:
+rhelai_aws_ilab_config_path:
+rhelai_aws_owner:
+rhelai_aws_model_download_timeout:
+rhelai_aws_serve_port:
+rhelai_aws_additional_model_params:
+rhelai_aws_api_token:

@@ -1,0 +1,11 @@
+---
+rhelai_aws_resource_name:
+rhelai_aws_aws_region:
+rhelai_aws_local_ssh_key_path:
+rhelai_aws_systemd_user:
+rhelai_aws_vpc_cidr:
+rhelai_aws_subnet_cidr:
+rhelai_aws_rh_registry_url:
+rhelai_aws_rh_registry_user:
+rhelai_aws_rh_registry_password:
+rhelai_aws_teardown:

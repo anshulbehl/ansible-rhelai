@@ -1,0 +1,25 @@
+---
+######################################## Instructlab variables
+rhelai_aws_instance_type: g6.2xlarge
+rhelai_aws_rhelai_ami: ami-0bd07a9027badbbf1  # AMI for RHEL AI on AWS
+rhelai_aws_model_name: granite-8b-starter-v1  # Can be any model supported by RHEL AI
+rhelai_aws_disk_size: 500
+rhelai_aws_ilab_config_path: "/etc/ilab"
+rhelai_aws_owner: "YOURNAME"  # Add a owner tag to the instance
+rhelai_aws_model_download_timeout: 600
+rhelai_aws_serve_port: 8000  # Default RHEL AI serve port
+rhelai_aws_additional_model_params: ""
+rhelai_aws_api_token: demotoken  # Add a token to authenticate with the model
+######################################## AWS variables
+rhelai_aws_resource_name: "myRHELAIInstance"  # Names your EC2 instance
+rhelai_aws_aws_region: us-east-1
+# Saves the key to ssh in the playbook directory
+rhelai_aws_local_ssh_key_path: "{{ playbook_dir }}/{{ rhelai_aws_resource_name }}.pem"
+rhelai_aws_systemd_user: ec2-user  # Default user to ssh to RHEL AI EC2 instance
+rhelai_aws_vpc_cidr: "10.0.0.0/16"
+rhelai_aws_subnet_cidr: "10.0.1.0/24"
+rhelai_aws_rh_registry_url: registry.redhat.io
+# registry.redhat.io credentials to download models
+rhelai_aws_rh_registry_user: ""
+rhelai_aws_rh_registry_password: ""
+rhelai_aws_teardown: false  # Deletes EC2 instance if set
