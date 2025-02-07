@@ -32,6 +32,7 @@
     state: present
     cidr: "{{ rhelai_aws_subnet_cidr }}"
     region: "{{ rhelai_aws_aws_region }}"
+    az: "{{ rhelai_aws_aws_region }}a"
     map_public: true
     tags:
       Name: "{{ rhelai_aws_resource_name }}-subnet"
@@ -132,7 +133,7 @@
     name: "{{ rhelai_aws_resource_name }}-instance"
     ansible_host: "{{ ec2.instances[0].public_ip_address }}"
     ansible_user: "{{ rhelai_aws_systemd_user }}"
-    ansible_ssh_private_key_file: "{{ playbook_dir }}/{{ rhelai_aws_resource_name }}.pem"
+    ansible_ssh_private_key_file: "{{ rhelai_aws_local_ssh_key_path }}"
     ansible_ssh_extra_args: "-o StrictHostKeyChecking=no"
     groups: rhelai_servers
 

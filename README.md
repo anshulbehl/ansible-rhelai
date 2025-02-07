@@ -21,7 +21,7 @@ ansible-playbook awsrhelai.yml -e @sample_vars.yml
 ```
 
 ## Testing the model via CLI
-You can ssh into the system with the private key created and run the command below
+You can ssh into the system with the private key created and run the command below (Run this command as root user)
 ```
 ilab model chat -m ~/.cache/instructlab/models/granite-8b-starter-v1 --endpoint-url http://0.0.0.0:8000/v1 --api-key demotoken
 ```
