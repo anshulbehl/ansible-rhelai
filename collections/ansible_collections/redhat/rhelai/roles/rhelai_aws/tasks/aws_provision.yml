@@ -40,14 +40,14 @@
 - name: Create security group
   amazon.aws.ec2_security_group:
     name: "{{ rhelai_aws_resource_name }}-sg"
-    description: "SG for {{ rhelai_aws_resource_name }}"
+    description: SG for {{ rhelai_aws_resource_name }}
     vpc_id: "{{ created_vpc.vpc.id }}"
     region: "{{ rhelai_aws_aws_region }}"
     state: present
     rules:
       - proto: tcp
         ports: [22, 80, 8000]
-        cidr_ip: 0.0.0.0/0
+        cidr_ip: "0.0.0.0/0"
     purge_rules: true
   register: created_sg
 
@@ -87,7 +87,7 @@
     subnets:
       - "{{ created_subnet.subnet.id }}"
     routes:
-      - dest: 0.0.0.0/0
+      - dest: "0.0.0.0/0"
         gateway_id: "{{ igw.gateway_id }}"
   register: routetable
   when: not default_route_exists
@@ -133,7 +133,7 @@
     ansible_host: "{{ ec2.instances[0].public_ip_address }}"
     ansible_user: "{{ rhelai_aws_systemd_user }}"
     ansible_ssh_private_key_file: "{{ playbook_dir }}/{{ rhelai_aws_resource_name }}.pem"
-    ansible_ssh_extra_args: "-o StrictHostKeyChecking=no"
+    ansible_ssh_extra_args: -o StrictHostKeyChecking=no
     groups: rhelai_servers
 
 - name: Check port 8000 is NOT listening
@@ -141,11 +141,11 @@
     host: "{{ ec2.instances[0].public_ip_address }}"
     port: 8000
     state: stopped
-    timeout: 5         # short timeout to detect an open port quickly
+    timeout: 5 # short timeout to detect an open port quickly
   register: port_check
-  ignore_errors: true  # so we can handle the failure ourselves
+  ignore_errors: true # so we can handle the failure ourselves
 
 - name: Fail if port 8000 is listening
   ansible.builtin.fail:
-    msg: "Port 8000 is already open on {{ ec2.instances[0].public_ip_address }}. Failing."
+    msg: Port 8000 is already open on {{ ec2.instances[0].public_ip_address }}. Failing.
   when: port_check.failed
