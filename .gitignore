@@ -5,9 +5,9 @@
 # Ignore Ansible logs and temporary files
 .ansible/
 
-.vscode/
-.devcontainer/
+.vscode/settings.json
 
+# Local variables
 vars.yml
 
 # Ignore everything inside collections/ansible_collections/
