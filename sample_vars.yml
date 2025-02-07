@@ -1,7 +1,7 @@
 ---
 ######################################## Instructlab variables
-rhelai_aws_instance_type: g6.2xlarge
-rhelai_aws_rhelai_ami: ami-0bd07a9027badbbf1  # AMI for RHEL AI on AWS
+rhelai_aws_instance_type: g6.2xlarge  # AWS instance type out of g6 family
+rhelai_aws_rhelai_ami: ami-123456789  # AMI for RHEL AI on AWS
 rhelai_aws_model_name: granite-8b-starter-v1  # Can be any model supported by RHEL AI
 rhelai_aws_disk_size: 500
 rhelai_aws_ilab_config_path: "/etc/ilab"
