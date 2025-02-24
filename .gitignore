@@ -16,3 +16,5 @@ collections/ansible_collections/*
 # But do not ignore the redhat directory
 !collections/ansible_collections/redhat/
 
+*.pyc
+
