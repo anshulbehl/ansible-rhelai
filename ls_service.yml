@@ -6,6 +6,11 @@
     - name: Load Vaulted Variables
       ansible.builtin.include_vars:
         file: "ls_vars.yml"
+    - name: Set Gateway Variables from AAP Credentials
+      ansible.builtin.set_fact:
+        gateway_hostname: "{{ lookup('env', 'CONTROLLER_HOST') }}"
+        gateway_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+        gateway_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
 
 - name: Create OAuth2 application in AAP
   hosts: localhost
