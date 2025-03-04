@@ -17,4 +17,6 @@ collections/ansible_collections/*
 !collections/ansible_collections/redhat/
 
 *.pyc
+*.cfg.bkup
+
 

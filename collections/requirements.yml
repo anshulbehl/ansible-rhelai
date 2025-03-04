@@ -3,3 +3,5 @@ collections:
   - name: amazon.aws
   - name: community.crypto
   - name: containers.podman
+  - name: kubernetes.core
+    version: 5.1.0

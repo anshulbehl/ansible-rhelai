@@ -1,0 +1,132 @@
+---
+- name: Create OAuth2 application in AAP
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Create OAuth2 application
+      ansible.platform.application:
+        gateway_hostname: "{{ controller_host }}"
+        gateway_username: "{{ controller_username }}"
+        gateway_password: "{{ controller_password }}"
+        validate_certs: "{{ validate_certs }}"
+        name: "{{ oauth_app_name }}"
+        organization: "Default"
+        client_type: "confidential"
+        authorization_grant_type: "authorization-code"
+        redirect_uris:
+          - http://temp/
+      register: oauth_result
+
+    - name: Display OAuth Application Details
+      ansible.builtin.debug:
+        msg: "OAuth App Created: Client ID: {{ oauth_result.client_id }}, Secret: {{ oauth_result.client_secret }}"
+
+    - name: Store OAuth credentials as a fact
+      ansible.builtin.set_fact:
+        oauth_client_id: "{{ oauth_result.client_id }}"
+        oauth_client_secret: "{{ oauth_result.client_secret }}"
+
+- name: Deploy Red Hat Ansible Lightspeed on OpenShift
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Assign loaded values to secrets dictionary
+      ansible.builtin.set_fact:
+        aap_secrets:
+          auth_config_secret_name:
+            data:
+              auth_api_url: "{{ controller_host }}"
+              auth_api_key: "{{ oauth_client_id }}"
+              auth_api_secret: "{{ oauth_client_secret }}"
+              auth_verify_ssl: false
+              auth_allowed_hosts: "*"
+
+    - name: Display secrets dictionary
+      ansible.builtin.debug:
+        var: aap_secrets
+
+    - name: Merge secrets from vars file and facts
+      ansible.builtin.set_fact:
+        combined_secrets: "{{ secrets | combine(aap_secrets, recursive=True) }}"
+
+    - name: Display secrets dictionary
+      ansible.builtin.debug:
+        var: combined_secrets
+
+    - name: Ensure required secrets are created
+      kubernetes.core.k8s:
+        state: present
+        kind: Secret
+        namespace: "{{ lightspeed_namespace }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ combined_secrets[item].name }}"
+            namespace: "{{ lightspeed_namespace }}"
+          type: Opaque
+          data: >-
+            {{
+              dict(combined_secrets[item].data.keys() | zip(combined_secrets[item].data.values() | map('b64encode')))
+            }}
+      loop: "{{ needed_connections }}"
+      # when: secrets[item].data is defined and secrets[item].data is not none
+
+    - name: Build CRD spec dynamically
+      ansible.builtin.set_fact:
+        crd_spec: >-
+          {%- set crd = {} -%}
+          {%- for item in needed_connections -%}
+          {%-   set _ = crd.update({ secrets[item].crd_field: secrets[item].name }) -%}
+          {%- endfor -%}
+          {{ crd }}
+
+    - name: Deploy Ansible Lightspeed CRD
+      kubernetes.core.k8s:
+        state: present
+        namespace: "{{ lightspeed_namespace }}"
+        definition:
+          apiVersion: lightspeed.ansible.com/v1alpha1
+          kind: AnsibleLightspeed
+          metadata:
+            name: lightspeed-instance
+            namespace: "{{ lightspeed_namespace }}"
+          spec: "{{ crd_spec }}"
+
+    - name: Wait for the AnsibleLightspeed CR to be fully operational
+      kubernetes.core.k8s_info:
+        api_version: lightspeed.ansible.com/v1alpha1
+        kind: AnsibleLightspeed
+        namespace: "{{ lightspeed_namespace }}"
+        name: "lightspeed-instance"
+      register: ls_cr
+      retries: 30
+      delay: 10
+      until: >
+        ls_cr.resources | length > 0 and
+        ls_cr.resources[0].status is defined and
+        ls_cr.resources[0].status.URL is defined and
+        ls_cr.resources[0].status.URL | length > 0
+
+    - name: Extract the OpenShift Route from AnsibleLightspeed status
+      ansible.builtin.set_fact:
+        lightspeed_url: "{{ ls_cr.resources[0].status.URL }}"
+
+    - name: Display the AnsibleLightspeed URL
+      ansible.builtin.debug:
+        msg: "AnsibleLightspeed service is ready at: {{ lightspeed_url }}"
+
+- name: Patch OAuth2 application in AAP
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Patch OAuth2 application
+      ansible.platform.application:
+        gateway_hostname: "{{ controller_host }}"
+        gateway_username: "{{ controller_username }}"
+        gateway_password: "{{ controller_password }}"
+        validate_certs: "{{ validate_certs }}"
+        name: "{{ oauth_app_name }}"
+        organization: "Default"
+        redirect_uris:
+          - "{{ lightspeed_url }}/complete/aap/"
