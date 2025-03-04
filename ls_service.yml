@@ -1,4 +1,12 @@
 ---
+- name: Global Vault Variable Loading
+  hosts: localhost
+  gather_facts: true
+  pre_tasks:
+    - name: Load Vaulted Variables
+      ansible.builtin.include_vars:
+        file: "ls_vars.yml"
+
 - name: Create OAuth2 application in AAP
   hosts: localhost
   gather_facts: false
@@ -27,10 +35,6 @@
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Load secrets from file
-      ansible.builtin.include_vars:
-        file: "ls_vars.yml"
-
     - name: Assign loaded values to secrets dictionary
       ansible.builtin.set_fact:
         aap_secrets:
