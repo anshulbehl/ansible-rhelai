@@ -82,6 +82,7 @@
             }}
       loop: "{{ needed_connections }}"
       # when: secrets[item].data is defined and secrets[item].data is not none
+      no_log: true
 
     - name: Build CRD spec dynamically
       ansible.builtin.set_fact:
