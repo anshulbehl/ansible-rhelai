@@ -58,6 +58,8 @@
               auth_api_secret: "{{ oauth_client_secret }}"
               auth_verify_ssl: false
               auth_allowed_hosts: "*"
+      no_log: true
+
 
     - name: Merge secrets from vars file and facts
       ansible.builtin.set_fact:
