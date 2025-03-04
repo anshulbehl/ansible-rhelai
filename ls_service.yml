@@ -19,6 +19,9 @@
 
     - name: Create OAuth2 application
       ansible.platform.application:
+        gateway_hostname: "{{ gateway_hostname }}"
+        gateway_username: "{{ gateway_username }}"
+        gateway_password: "{{ gateway_password }}"
         validate_certs: "{{ validate_certs }}"
         name: "{{ oauth_app_name }}"
         organization: "Default"
@@ -46,7 +49,7 @@
         aap_secrets:
           auth_config_secret_name:
             data:
-              auth_api_url: "{{ controller_host }}"
+              auth_api_url: "http://{{ gateway_hostname }}/"
               auth_api_key: "{{ oauth_client_id }}"
               auth_api_secret: "{{ oauth_client_secret }}"
               auth_verify_ssl: false
@@ -138,6 +141,9 @@
         gateway_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
     - name: Patch OAuth2 application
       ansible.platform.application:
+        gateway_hostname: "{{ gateway_hostname }}"
+        gateway_username: "{{ gateway_username }}"
+        gateway_password: "{{ gateway_password }}"
         validate_certs: "{{ validate_certs }}"
         name: "{{ oauth_app_name }}"
         organization: "Default"
