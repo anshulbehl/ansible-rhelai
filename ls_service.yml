@@ -5,9 +5,6 @@
   tasks:
     - name: Create OAuth2 application
       ansible.platform.application:
-        gateway_hostname: "{{ controller_host }}"
-        gateway_username: "{{ controller_username }}"
-        gateway_password: "{{ controller_password }}"
         validate_certs: "{{ validate_certs }}"
         name: "{{ oauth_app_name }}"
         organization: "Default"
@@ -122,9 +119,6 @@
   tasks:
     - name: Patch OAuth2 application
       ansible.platform.application:
-        gateway_hostname: "{{ controller_host }}"
-        gateway_username: "{{ controller_username }}"
-        gateway_password: "{{ controller_password }}"
         validate_certs: "{{ validate_certs }}"
         name: "{{ oauth_app_name }}"
         organization: "Default"
