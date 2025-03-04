@@ -6,6 +6,7 @@
     - name: Load Vaulted Variables
       ansible.builtin.include_vars:
         file: "ls_vars.yml"
+      no_log: true
 
 - name: Create OAuth2 application in AAP
   hosts: localhost
@@ -16,6 +17,7 @@
         gateway_hostname: "{{ lookup('env', 'CONTROLLER_HOST') }}"
         gateway_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
         gateway_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+      no_log: true
 
     - name: Create OAuth2 application
       ansible.platform.application:
@@ -34,11 +36,13 @@
     - name: Display OAuth Application Details
       ansible.builtin.debug:
         msg: "OAuth App Created: Client ID: {{ oauth_result.client_id }}, Secret: {{ oauth_result.client_secret }}"
+      no_log: true
 
     - name: Store OAuth credentials as a fact
       ansible.builtin.set_fact:
         oauth_client_id: "{{ oauth_result.client_id }}"
         oauth_client_secret: "{{ oauth_result.client_secret }}"
+      no_log: true
 
 - name: Deploy Red Hat Ansible Lightspeed on OpenShift
   hosts: localhost
@@ -55,17 +59,10 @@
               auth_verify_ssl: false
               auth_allowed_hosts: "*"
 
-    - name: Display secrets dictionary
-      ansible.builtin.debug:
-        var: aap_secrets
-
     - name: Merge secrets from vars file and facts
       ansible.builtin.set_fact:
         combined_secrets: "{{ secrets | combine(aap_secrets, recursive=True) }}"
-
-    - name: Display secrets dictionary
-      ansible.builtin.debug:
-        var: combined_secrets
+      no_log: true
 
     - name: Ensure required secrets are created
       kubernetes.core.k8s:
@@ -139,6 +136,8 @@
         gateway_hostname: "{{ lookup('env', 'CONTROLLER_HOST') }}"
         gateway_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
         gateway_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+      no_log: true
+
     - name: Patch OAuth2 application
       ansible.platform.application:
         gateway_hostname: "{{ gateway_hostname }}"
