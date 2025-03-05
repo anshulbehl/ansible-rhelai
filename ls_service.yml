@@ -56,7 +56,7 @@
               auth_api_url: "https://{{ gateway_hostname }}/"
               auth_api_key: "{{ oauth_client_id }}"
               auth_api_secret: "{{ oauth_client_secret }}"
-              auth_verify_ssl: "false"
+              auth_verify_ssl: false
               auth_allowed_hosts: "*"
       no_log: true
 
