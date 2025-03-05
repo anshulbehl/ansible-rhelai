@@ -134,12 +134,12 @@
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Set Gateway Variables from AAP Credentials
-      ansible.builtin.set_fact:
-        gateway_hostname: "{{ lookup('env', 'CONTROLLER_HOST') }}"
-        gateway_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
-        gateway_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
-      no_log: true
+    # - name: Set Gateway Variables from AAP Credentials
+    #   ansible.builtin.set_fact:
+    #     gateway_hostname: "{{ lookup('env', 'CONTROLLER_HOST') }}"
+    #     gateway_username: "{{ lookup('env', 'CONTROLLER_USERNAME') }}"
+    #     gateway_password: "{{ lookup('env', 'CONTROLLER_PASSWORD') }}"
+    #   no_log: true
 
     - name: Patch OAuth2 application
       ansible.platform.application:
